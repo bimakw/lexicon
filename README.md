@@ -1,6 +1,6 @@
 # Lexicon
 
-A Blog/CMS REST API built with .NET 8 and Clean Architecture.
+A Blog/CMS application built with .NET 8 (Clean Architecture) and Next.js.
 
 ## Features
 
@@ -13,7 +13,7 @@ A Blog/CMS REST API built with .NET 8 and Clean Architecture.
 
 ## Architecture
 
-This project follows Clean Architecture principles:
+### Backend (.NET 8 - Clean Architecture)
 
 ```
 src/
@@ -23,14 +23,34 @@ src/
 └── Lexicon.Api/             # Controllers, Middleware
 ```
 
+### Frontend (Next.js 16)
+
+```
+frontend/
+├── app/                     # App Router pages
+├── components/              # UI components
+├── lib/                     # API client, utilities
+└── types/                   # TypeScript definitions
+```
+
 ## Tech Stack
 
+### Backend
 - **.NET 8** - Latest LTS framework
 - **Entity Framework Core 8** - ORM with PostgreSQL
 - **FluentValidation** - Input validation
 - **Serilog** - Structured logging
 - **Swagger/OpenAPI** - API documentation
+
+### Frontend
+- **Next.js 16** - React framework with App Router
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Utility-first styling
+- **Axios** - HTTP client
+
+### Infrastructure
 - **Docker** - Containerization
+- **PostgreSQL** - Database
 
 ## Getting Started
 
@@ -45,24 +65,28 @@ src/
 docker-compose up -d
 
 # View logs
-docker-compose logs -f api
+docker-compose logs -f
 
 # Stop
 docker-compose down
 ```
 
-The API will be available at:
-- **API**: http://localhost:5000
-- **Swagger UI**: http://localhost:5000
+The application will be available at:
+- **Frontend**: http://localhost:10181
+- **API**: http://localhost:10180
+- **Swagger UI**: http://localhost:10180/swagger
+- **Database**: localhost:15432
 
 ### Development Mode
 
 ```bash
-# Start with hot reload
+# Backend only with hot reload
 docker-compose -f docker-compose.dev.yml up -d
 
-# Run migrations manually
-docker-compose exec api dotnet ef database update
+# Frontend local development
+cd frontend
+npm install
+npm run dev
 ```
 
 ## API Endpoints

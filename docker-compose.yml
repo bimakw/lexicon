@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: lexicon-api
     ports:
-      - "5000:8080"
+      - "10180:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=db;Database=lexicon;Username=lexicon;Password=lexicon123
@@ -17,11 +17,27 @@ services:
     networks:
       - lexicon-network
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:10180/api
+    container_name: lexicon-frontend
+    ports:
+      - "10181:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:10180/api
+    depends_on:
+      - api
+    networks:
+      - lexicon-network
+
   db:
     image: postgres:16-alpine
     container_name: lexicon-db
     ports:
-      - "5433:5432"
+      - "15432:5432"
     environment:
       - POSTGRES_USER=lexicon
       - POSTGRES_PASSWORD=lexicon123
