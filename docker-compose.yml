@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lexicon-api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=db;Database=lexicon;Username=lexicon;Password=lexicon123
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - lexicon-network
+
+  db:
+    image: postgres:16-alpine
+    container_name: lexicon-db
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=lexicon
+      - POSTGRES_PASSWORD=lexicon123
+      - POSTGRES_DB=lexicon
+    volumes:
+      - lexicon-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lexicon -d lexicon"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lexicon-network
+
+networks:
+  lexicon-network:
+    driver: bridge
+
+volumes:
+  lexicon-data:

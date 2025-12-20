@@ -1,0 +1,29 @@
+# Development Dockerfile with hot reload
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+
+WORKDIR /app
+
+# Install EF Core tools
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
+# Copy solution and project files
+COPY *.sln .
+COPY src/Lexicon.Domain/*.csproj ./src/Lexicon.Domain/
+COPY src/Lexicon.Application/*.csproj ./src/Lexicon.Application/
+COPY src/Lexicon.Infrastructure/*.csproj ./src/Lexicon.Infrastructure/
+COPY src/Lexicon.Api/*.csproj ./src/Lexicon.Api/
+
+# Restore dependencies
+RUN dotnet restore
+
+# Copy source code
+COPY src/ ./src/
+COPY tests/ ./tests/
+
+WORKDIR /app/src/Lexicon.Api
+
+EXPOSE 8080
+
+# Use dotnet watch for hot reload
+ENTRYPOINT ["dotnet", "watch", "run", "--urls", "http://0.0.0.0:8080"]
