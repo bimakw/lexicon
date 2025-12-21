@@ -1,6 +1,12 @@
-# Lexicon
+<p align="center">
+  <img src="logo.svg" alt="Lexicon Logo" width="120" height="120">
+</p>
 
-A Blog/CMS application built with .NET 8 (Clean Architecture) and Next.js.
+<h1 align="center">Lexicon</h1>
+
+<p align="center">
+  A Blog/CMS application built with .NET 8 (Clean Architecture) and Next.js.
+</p>
 
 ## Features
 
