@@ -1,21 +1,39 @@
 'use client';
 
 import { useState } from 'react';
-import { BookOpen, Mail, Lock, ArrowRight, Sparkles, Github, Chrome } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { BookOpen, Mail, Lock, ArrowRight, Sparkles, Github, Chrome, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { login, isAuthenticated } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    router.push('/');
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate login
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    window.location.href = '/';
+    setError(null);
+
+    try {
+      await login({ usernameOrEmail: email, password });
+      router.push('/');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -98,18 +116,26 @@ export default function LoginPage() {
             <p className="text-slate-500">Sign in to your account to continue</p>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
+
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Email</label>
+              <label className="block text-sm font-semibold text-slate-700">Email or Username</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
+                  placeholder="name@company.com or username"
                   className="w-full pl-12 pr-4 py-3.5 bg-white/70 backdrop-blur-sm border border-slate-200/50 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all duration-300 shadow-sm hover:shadow-md"
                   required
                 />
@@ -195,7 +221,7 @@ export default function LoginPage() {
           {/* Sign Up Link */}
           <p className="mt-8 text-center text-slate-600">
             Don't have an account?{' '}
-            <a href="#" className="text-indigo-600 hover:text-indigo-700 font-semibold">
+            <a href="/register" className="text-indigo-600 hover:text-indigo-700 font-semibold">
               Sign up for free
             </a>
           </p>

@@ -1,6 +1,7 @@
 using Lexicon.Application.DTOs;
 using Lexicon.Application.Services;
 using Lexicon.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Lexicon.Api.Controllers;
@@ -17,6 +18,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult<PagedResult<PostListDto>>> GetPosts(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
@@ -35,6 +37,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("{slug}")]
+    [AllowAnonymous]
     public async Task<ActionResult<PostDto>> GetPost(string slug, CancellationToken cancellationToken)
     {
         var post = await _postService.GetBySlugAsync(slug, cancellationToken);
@@ -43,6 +46,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("id/{id:guid}")]
+    [AllowAnonymous]
     public async Task<ActionResult<PostDto>> GetPostById(Guid id, CancellationToken cancellationToken)
     {
         var post = await _postService.GetByIdAsync(id, cancellationToken);
@@ -51,6 +55,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "CanCreatePosts")]
     public async Task<ActionResult<PostDto>> CreatePost(CreatePostDto dto, CancellationToken cancellationToken)
     {
         var post = await _postService.CreateAsync(dto, cancellationToken);
@@ -58,6 +63,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "CanUpdatePosts")]
     public async Task<ActionResult<PostDto>> UpdatePost(Guid id, UpdatePostDto dto, CancellationToken cancellationToken)
     {
         var post = await _postService.UpdateAsync(id, dto, cancellationToken);
@@ -66,6 +72,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "CanDeletePosts")]
     public async Task<IActionResult> DeletePost(Guid id, CancellationToken cancellationToken)
     {
         var result = await _postService.DeleteAsync(id, cancellationToken);
@@ -74,6 +81,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/publish")]
+    [Authorize(Policy = "CanPublishPosts")]
     public async Task<ActionResult<PostDto>> PublishPost(Guid id, CancellationToken cancellationToken)
     {
         var post = await _postService.PublishAsync(id, cancellationToken);
@@ -82,6 +90,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/unpublish")]
+    [Authorize(Policy = "CanPublishPosts")]
     public async Task<ActionResult<PostDto>> UnpublishPost(Guid id, CancellationToken cancellationToken)
     {
         var post = await _postService.UnpublishAsync(id, cancellationToken);
