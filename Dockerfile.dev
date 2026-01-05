@@ -1,5 +1,5 @@
 # Development Dockerfile with hot reload
-FROM mcr.microsoft.com/dotnet/sdk:8.0
+FROM mcr.microsoft.com/dotnet/sdk:9.0
 
 WORKDIR /app
 
