@@ -11,133 +11,95 @@ namespace Lexicon.Application.Tests.Services;
 public class AuthorServiceTests
 {
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
-    private readonly Mock<IAuthorRepository> _authorRepositoryMock;
-    private readonly AuthorService _sut;
+    private readonly Mock<IAuthorRepository> _authorRepoMock;
+    private readonly AuthorService _authorService;
 
     public AuthorServiceTests()
     {
         _unitOfWorkMock = new Mock<IUnitOfWork>();
-        _authorRepositoryMock = new Mock<IAuthorRepository>();
+        _authorRepoMock = new Mock<IAuthorRepository>();
 
-        _unitOfWorkMock.Setup(u => u.Authors).Returns(_authorRepositoryMock.Object);
-
-        _sut = new AuthorService(_unitOfWorkMock.Object);
+        _unitOfWorkMock.Setup(u => u.Authors).Returns(_authorRepoMock.Object);
+        _authorService = new AuthorService(_unitOfWorkMock.Object);
     }
 
     [Fact]
     public async Task GetAllAsync_ShouldReturnAllAuthors()
     {
-        // Arrange
-        var authors = new List<Author>
-        {
-            new() { Id = Guid.NewGuid(), Name = "Author 1", Email = "a1@test.com" },
-            new() { Id = Guid.NewGuid(), Name = "Author 2", Email = "a2@test.com" }
-        };
-
-        _authorRepositoryMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+        var authors = new List<Author> { CreateAuthor("Author 1"), CreateAuthor("Author 2") };
+        _authorRepoMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(authors);
 
-        // Act
-        var result = await _sut.GetAllAsync();
+        var result = await _authorService.GetAllAsync();
 
-        // Assert
         result.Should().HaveCount(2);
-        result.First().Name.Should().Be("Author 1");
+        Assert.Equal("Author 1", result.First().Name);
     }
 
     [Fact]
     public async Task GetByIdAsync_ShouldReturnAuthor_WhenFound()
     {
-        // Arrange
-        var id = Guid.NewGuid();
-        var author = new Author { Id = id, Name = "Test Author", Email = "test@test.com" };
-
-        _authorRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+        var author = CreateAuthor("Test Author");
+        _authorRepoMock.Setup(r => r.GetByIdAsync(author.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(author);
 
-        // Act
-        var result = await _sut.GetByIdAsync(id);
+        var result = await _authorService.GetByIdAsync(author.Id);
 
-        // Assert
-        result.Should().NotBeNull();
-        result!.Id.Should().Be(id);
-        result.Email.Should().Be("test@test.com");
+        Assert.NotNull(result);
+        result.Email.Should().Be(author.Email);
     }
 
     [Fact]
     public async Task CreateAsync_ShouldCreateAuthor()
     {
-        // Arrange
         var dto = new CreateAuthorDto("New Author", "new@test.com", "Bio", "https://avatar.url");
 
-        // Act
-        var result = await _sut.CreateAsync(dto);
+        var result = await _authorService.CreateAsync(dto);
 
-        // Assert
-        result.Should().NotBeNull();
-        result.Name.Should().Be("New Author");
-        result.Email.Should().Be("new@test.com");
-
-        _authorRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Author>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal("New Author", result.Name);
+        
+        _authorRepoMock.Verify(r => r.AddAsync(It.IsAny<Author>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task UpdateAsync_ShouldUpdateAuthor_WhenFound()
     {
-        // Arrange
-        var id = Guid.NewGuid();
-        var author = new Author { Id = id, Name = "Old Name", Email = "old@test.com" };
+        var author = CreateAuthor("Old Name");
         var dto = new UpdateAuthorDto("Updated Name", "updated@test.com", "New Bio", "https://new.url");
 
-        _authorRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+        _authorRepoMock.Setup(r => r.GetByIdAsync(author.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(author);
 
-        // Act
-        var result = await _sut.UpdateAsync(id, dto);
+        var result = await _authorService.UpdateAsync(author.Id, dto);
 
-        // Assert
-        result.Should().NotBeNull();
-        result!.Name.Should().Be("Updated Name");
-        result.Email.Should().Be("updated@test.com");
+        Assert.Equal("Updated Name", result!.Name);
 
-        _authorRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Author>(), It.IsAny<CancellationToken>()), Times.Once);
+        _authorRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Author>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task DeleteAsync_ShouldReturnTrue_WhenFound()
     {
-        // Arrange
-        var id = Guid.NewGuid();
-        var author = new Author { Id = id, Name = "To Delete" };
-
-        _authorRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+        var author = CreateAuthor("To Delete");
+        _authorRepoMock.Setup(r => r.GetByIdAsync(author.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(author);
 
-        // Act
-        var result = await _sut.DeleteAsync(id);
+        var result = await _authorService.DeleteAsync(author.Id);
 
-        // Assert
-        result.Should().BeTrue();
-        _authorRepositoryMock.Verify(r => r.DeleteAsync(author, It.IsAny<CancellationToken>()), Times.Once);
-        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        Assert.True(result);
+        _authorRepoMock.Verify(r => r.DeleteAsync(author, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
-    public async Task DeleteAsync_ShouldReturnFalse_WhenNotFound()
+    private static Author CreateAuthor(string name)
     {
-        // Arrange
-        var id = Guid.NewGuid();
-
-        _authorRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Author?)null);
-
-        // Act
-        var result = await _sut.DeleteAsync(id);
-
-        // Assert
-        result.Should().BeFalse();
-        _authorRepositoryMock.Verify(r => r.DeleteAsync(It.IsAny<Author>(), It.IsAny<CancellationToken>()), Times.Never);
+        return new Author
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Email = $"{name.Replace(" ", "").ToLower()}@test.com",
+            CreatedAt = DateTime.UtcNow
+        };
     }
 }

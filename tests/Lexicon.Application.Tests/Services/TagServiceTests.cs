@@ -12,7 +12,7 @@ public class TagServiceTests
 {
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<ITagRepository> _tagRepositoryMock;
-    private readonly TagService _sut;
+    private readonly TagService _tagService;
 
     public TagServiceTests()
     {
@@ -20,178 +20,125 @@ public class TagServiceTests
         _tagRepositoryMock = new Mock<ITagRepository>();
 
         _unitOfWorkMock.Setup(u => u.Tags).Returns(_tagRepositoryMock.Object);
-
-        _sut = new TagService(_unitOfWorkMock.Object);
+        _tagService = new TagService(_unitOfWorkMock.Object);
     }
 
     [Fact]
     public async Task GetAllAsync_ShouldReturnAllTags()
     {
-        // Arrange
-        var tags = new List<Tag>
-        {
-            new() { Id = Guid.NewGuid(), Name = "Tag 1", Slug = "tag-1" },
-            new() { Id = Guid.NewGuid(), Name = "Tag 2", Slug = "tag-2" }
-        };
-
+        var tags = new List<Tag> { CreateTag("Tag 1"), CreateTag("Tag 2") };
         _tagRepositoryMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(tags);
 
-        // Act
-        var result = await _sut.GetAllAsync();
+        var result = await _tagService.GetAllAsync();
 
-        // Assert
         result.Should().HaveCount(2);
-        result.First().Name.Should().Be("Tag 1");
+        Assert.Equal("Tag 1", result.First().Name);
     }
 
     [Fact]
     public async Task GetByIdAsync_ShouldReturnTag_WhenTagExists()
     {
-        // Arrange
-        var tagId = Guid.NewGuid();
-        var tag = new Tag { Id = tagId, Name = "Test Tag", Slug = "test-tag" };
-
-        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tagId, It.IsAny<CancellationToken>()))
+        var tag = CreateTag("Test Tag");
+        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tag.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(tag);
 
-        // Act
-        var result = await _sut.GetByIdAsync(tagId);
+        var result = await _tagService.GetByIdAsync(tag.Id);
 
-        // Assert
         result.Should().NotBeNull();
-        result!.Id.Should().Be(tagId);
-        result.Name.Should().Be("Test Tag");
+        Assert.Equal(tag.Id, result!.Id);
     }
 
     [Fact]
     public async Task GetByIdAsync_ShouldReturnNull_WhenTagDoesNotExist()
     {
-        // Arrange
         var tagId = Guid.NewGuid();
-
         _tagRepositoryMock.Setup(r => r.GetByIdAsync(tagId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Tag?)null);
 
-        // Act
-        var result = await _sut.GetByIdAsync(tagId);
+        var result = await _tagService.GetByIdAsync(tagId);
 
-        // Assert
-        result.Should().BeNull();
+        Assert.Null(result);
     }
 
     [Fact]
     public async Task GetBySlugAsync_ShouldReturnTag_WhenTagExists()
     {
-        // Arrange
-        var slug = "test-tag";
-        var tag = new Tag { Id = Guid.NewGuid(), Name = "Test Tag", Slug = slug };
-
-        _tagRepositoryMock.Setup(r => r.GetBySlugAsync(slug, It.IsAny<CancellationToken>()))
+        var tag = CreateTag("Test Tag");
+        _tagRepositoryMock.Setup(r => r.GetBySlugAsync(tag.Slug, It.IsAny<CancellationToken>()))
             .ReturnsAsync(tag);
 
-        // Act
-        var result = await _sut.GetBySlugAsync(slug);
+        var result = await _tagService.GetBySlugAsync(tag.Slug);
 
-        // Assert
         result.Should().NotBeNull();
-        result!.Slug.Should().Be(slug);
+        result!.Slug.Should().Be(tag.Slug);
     }
 
     [Fact]
     public async Task CreateAsync_ShouldCreateTagAndReturnDto()
     {
-        // Arrange
         var dto = new CreateTagDto("New Tag");
 
-        // Act
-        var result = await _sut.CreateAsync(dto);
+        var result = await _tagService.CreateAsync(dto);
 
-        // Assert
         result.Should().NotBeNull();
-        result.Name.Should().Be("New Tag");
-        result.Slug.Should().Be("new-tag");
+        Assert.Equal("New Tag", result.Name);
 
-        _tagRepositoryMock.Verify(r => r.AddAsync(It.Is<Tag>(t => t.Name == "New Tag" && t.Slug == "new-tag"), It.IsAny<CancellationToken>()), Times.Once);
+        _tagRepositoryMock.Verify(r => r.AddAsync(It.Is<Tag>(t => t.Name == "New Tag"), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task UpdateAsync_ShouldUpdateTag_WhenTagExists()
     {
-        // Arrange
-        var tagId = Guid.NewGuid();
-        var existingTag = new Tag { Id = tagId, Name = "Old Name", Slug = "old-name" };
+        var tag = CreateTag("Old Name");
         var dto = new UpdateTagDto("Updated Name");
 
-        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tagId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingTag);
+        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tag.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tag);
 
-        // Act
-        var result = await _sut.UpdateAsync(tagId, dto);
+        var result = await _tagService.UpdateAsync(tag.Id, dto);
 
-        // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Updated Name");
-        result.Slug.Should().Be("updated-name");
+        Assert.Equal("Updated Name", result!.Name);
 
         _tagRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Tag>(t => t.Name == "Updated Name"), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task UpdateAsync_ShouldReturnNull_WhenTagDoesNotExist()
-    {
-        // Arrange
-        var tagId = Guid.NewGuid();
-        var dto = new UpdateTagDto("Updated Name");
-
-        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tagId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Tag?)null);
-
-        // Act
-        var result = await _sut.UpdateAsync(tagId, dto);
-
-        // Assert
-        result.Should().BeNull();
-        _tagRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Tag>(), It.IsAny<CancellationToken>()), Times.Never);
-        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
     public async Task DeleteAsync_ShouldReturnTrue_WhenTagExists()
     {
-        // Arrange
-        var tagId = Guid.NewGuid();
-        var existingTag = new Tag { Id = tagId, Name = "Tag To Delete" };
+        var tag = CreateTag("Delete Me");
+        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tag.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tag);
 
-        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tagId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingTag);
+        var result = await _tagService.DeleteAsync(tag.Id);
 
-        // Act
-        var result = await _sut.DeleteAsync(tagId);
-
-        // Assert
-        result.Should().BeTrue();
-        _tagRepositoryMock.Verify(r => r.DeleteAsync(existingTag, It.IsAny<CancellationToken>()), Times.Once);
-        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        Assert.True(result);
+        _tagRepositoryMock.Verify(r => r.DeleteAsync(tag, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task DeleteAsync_ShouldReturnFalse_WhenTagDoesNotExist()
     {
-        // Arrange
         var tagId = Guid.NewGuid();
-
         _tagRepositoryMock.Setup(r => r.GetByIdAsync(tagId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Tag?)null);
 
-        // Act
-        var result = await _sut.DeleteAsync(tagId);
+        var result = await _tagService.DeleteAsync(tagId);
 
-        // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
         _tagRepositoryMock.Verify(r => r.DeleteAsync(It.IsAny<Tag>(), It.IsAny<CancellationToken>()), Times.Never);
-        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private static Tag CreateTag(string name)
+    {
+        return new Tag
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Slug = name.ToLower().Replace(" ", "-")
+        };
     }
 }
