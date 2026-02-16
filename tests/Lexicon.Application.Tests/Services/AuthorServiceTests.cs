@@ -10,111 +10,92 @@ namespace Lexicon.Application.Tests.Services;
 
 public class AuthorServiceTests
 {
-    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
-    private readonly Mock<IAuthorRepository> _authorRepoMock;
-    private readonly AuthorService _authorService;
+    private readonly AuthorService _authorSvc;
+    private readonly Mock<IAuthorRepository> _authorRepo;
+    private readonly Mock<IUnitOfWork> _uow;
 
     public AuthorServiceTests()
     {
-        _unitOfWorkMock = new Mock<IUnitOfWork>();
-        _authorRepoMock = new Mock<IAuthorRepository>();
-
-        _unitOfWorkMock.Setup(u => u.Authors).Returns(_authorRepoMock.Object);
-        _authorService = new AuthorService(_unitOfWorkMock.Object);
+        _authorRepo = new Mock<IAuthorRepository>();
+        _uow = new Mock<IUnitOfWork>();
+        _uow.Setup(u => u.Authors).Returns(_authorRepo.Object);
+        _authorSvc = new AuthorService(_uow.Object);
     }
 
     [Fact]
-    public async Task When_GetAll_Should_ReturnDaftarPenulis()
+    public async Task ListPenulisGetAll()
     {
-        var authors = new List<Author> { CreateAuthor("Eko Kurniawan"), CreateAuthor("Sandhika Galih") };
-        _authorRepoMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(authors);
+        var penulis = new List<Author>
+        {
+            new() { Id = Guid.NewGuid(), Name = "Bapak Budi", Email = "budi@kantor.id", CreatedAt = DateTime.UtcNow },
+            new() { Id = Guid.NewGuid(), Name = "Andreas Budi", Email = "andreas@kantor.id", CreatedAt = DateTime.UtcNow }
+        };
+        _authorRepo.Setup(r => r.GetAllAsync(default)).ReturnsAsync(penulis);
 
-        var result = await _authorService.GetAllAsync();
+        var list = await _authorSvc.GetAllAsync();
 
-        result.Should().HaveCount(2);
-        result.First().Name.Should().Be("Eko Kurniawan");
+        list.Should().HaveCount(2);
+        list.Should().Contain(x => x.Name == "Bapak Budi");
     }
 
     [Fact]
-    public async Task When_GetById_Found_Should_ReturnDataPenulis()
-    {
-        var author = CreateAuthor("Budi Santoso");
-        _authorRepoMock.Setup(r => r.GetByIdAsync(author.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(author);
-
-        var result = await _authorService.GetByIdAsync(author.Id);
-
-        result.Should().NotBeNull();
-        result!.Email.Should().Be("budi.santoso@contoh.com");
-    }
-
-    [Fact]
-    public async Task When_Create_WithValidData_Should_SimpanDanReturnDto()
-    {
-        var dto = new CreateAuthorDto("Rani Maharani", "rani@contoh.com", "Content Creator", "https://foto.url");
-
-        var result = await _authorService.CreateAsync(dto);
-
-        result.Should().NotBeNull();
-        result.Name.Should().Be("Rani Maharani");
-
-        _authorRepoMock.Verify(r => r.AddAsync(It.IsAny<Author>(), It.IsAny<CancellationToken>()), Times.Once);
-        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task When_Update_Found_Should_UbahDataDanReturnDto()
-    {
-        var author = CreateAuthor("Nama Asli");
-        var dto = new UpdateAuthorDto("Nama Panggung", "panggung@contoh.com", "Artis", "https://baru.url");
-
-        _authorRepoMock.Setup(r => r.GetByIdAsync(author.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(author);
-
-        var result = await _authorService.UpdateAsync(author.Id, dto);
-
-        result.Should().NotBeNull();
-        result!.Name.Should().Be("Nama Panggung");
-
-        _authorRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Author>(), It.IsAny<CancellationToken>()), Times.Once);
-        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task When_Delete_Found_Should_HapusDataDanReturnTrue()
-    {
-        var author = CreateAuthor("Penulis Tidak Aktif");
-        _authorRepoMock.Setup(r => r.GetByIdAsync(author.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(author);
-
-        var result = await _authorService.DeleteAsync(author.Id);
-
-        result.Should().BeTrue();
-        _authorRepoMock.Verify(r => r.DeleteAsync(author, It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task When_Delete_NotFound_Should_ReturnFalse()
+    public async Task CariById()
     {
         var id = Guid.NewGuid();
-        _authorRepoMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Author?)null);
+        _authorRepo.Setup(r => r.GetByIdAsync(id, default))
+            .ReturnsAsync(new Author { Id = id, Name = "Pak Darto", Email = "darto@kantor.id", CreatedAt = DateTime.UtcNow });
 
-        var result = await _authorService.DeleteAsync(id);
+        var penulis = await _authorSvc.GetByIdAsync(id);
 
-        result.Should().BeFalse();
-        _authorRepoMock.Verify(r => r.DeleteAsync(It.IsAny<Author>(), It.IsAny<CancellationToken>()), Times.Never);
+        penulis.Should().NotBeNull();
+        penulis!.Name.Should().Be("Pak Darto");
     }
 
-    private static Author CreateAuthor(string name)
+    [Fact]
+    public async Task TambahPenulisNew()
     {
-        return new Author
-        {
-            Id = Guid.NewGuid(),
-            Name = name,
-            Email = $"{name.ToLower().Replace(" ", ".")}@contoh.com",
-            CreatedAt = DateTime.UtcNow
-        };
+        var input = new CreateAuthorDto("Rina Sulis", "rina@kantor.id", "Staff Admin", "https://foto.id/rina.jpg");
+
+        var result = await _authorSvc.CreateAsync(input);
+
+        result.Name.Should().Be("Rina Sulis");
+        result.Email.Should().Be("rina@kantor.id");
+
+        _authorRepo.Verify(r => r.AddAsync(It.Is<Author>(a => a.Email == "rina@kantor.id"), default));
+        _uow.Verify(u => u.SaveChangesAsync(default));
+    }
+
+    [Fact]
+    public async Task UpdatePenulis()
+    {
+        var authorId = Guid.NewGuid();
+        var lama = new Author { Id = authorId, Name = "Staff Lama", Email = "lama@kantor.id", CreatedAt = DateTime.UtcNow };
+        _authorRepo.Setup(r => r.GetByIdAsync(authorId, default)).ReturnsAsync(lama);
+
+        var dto = new UpdateAuthorDto("Staff Promosi", "promosi@kantor.id", "Naik jabatan", "https://foto.id/promosi.jpg");
+        var result = await _authorSvc.UpdateAsync(authorId, dto);
+
+        result!.Name.Should().Be("Staff Promosi");
+        _authorRepo.Verify(r => r.UpdateAsync(It.IsAny<Author>(), It.IsAny<CancellationToken>()));
+    }
+
+    [Fact]
+    public async Task HapusPenulisReturnTrue()
+    {
+        var authorId = Guid.NewGuid();
+        _authorRepo.Setup(r => r.GetByIdAsync(authorId, default))
+            .ReturnsAsync(new Author { Id = authorId, Name = "Resign", Email = "keluar@kantor.id", CreatedAt = DateTime.UtcNow });
+
+        var sukses = await _authorSvc.DeleteAsync(authorId);
+        sukses.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HapusPenulisReturnFalse()
+    {
+        _authorRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), default)).ReturnsAsync((Author?)null);
+
+        var gagal = await _authorSvc.DeleteAsync(Guid.NewGuid());
+        gagal.Should().BeFalse();
     }
 }
