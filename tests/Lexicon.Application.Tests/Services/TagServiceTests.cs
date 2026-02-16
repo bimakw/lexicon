@@ -11,125 +11,128 @@ namespace Lexicon.Application.Tests.Services;
 public class TagServiceTests
 {
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
-    private readonly Mock<ITagRepository> _tagRepositoryMock;
+    private readonly Mock<ITagRepository> _tagRepoMock;
     private readonly TagService _tagService;
 
     public TagServiceTests()
     {
         _unitOfWorkMock = new Mock<IUnitOfWork>();
-        _tagRepositoryMock = new Mock<ITagRepository>();
+        _tagRepoMock = new Mock<ITagRepository>();
 
-        _unitOfWorkMock.Setup(u => u.Tags).Returns(_tagRepositoryMock.Object);
+        _unitOfWorkMock.Setup(u => u.Tags).Returns(_tagRepoMock.Object);
         _tagService = new TagService(_unitOfWorkMock.Object);
     }
 
     [Fact]
-    public async Task GetAllAsync_ShouldReturnAllTags()
+    public async Task When_GetAll_Should_ReturnDaftarTagLengkap()
     {
-        var tags = new List<Tag> { CreateTag("Tag 1"), CreateTag("Tag 2") };
-        _tagRepositoryMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+        var tags = new List<Tag> { CreateTag("Berita Teknologi"), CreateTag("Info Kesehatan") };
+        _tagRepoMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(tags);
 
         var result = await _tagService.GetAllAsync();
 
         result.Should().HaveCount(2);
-        Assert.Equal("Tag 1", result.First().Name);
+        result.First().Name.Should().Be("Berita Teknologi");
     }
 
     [Fact]
-    public async Task GetByIdAsync_ShouldReturnTag_WhenTagExists()
+    public async Task When_GetById_Found_Should_ReturnDataTag()
     {
-        var tag = CreateTag("Test Tag");
-        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tag.Id, It.IsAny<CancellationToken>()))
+        var tag = CreateTag("Tutorial Masak");
+        _tagRepoMock.Setup(r => r.GetByIdAsync(tag.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(tag);
 
         var result = await _tagService.GetByIdAsync(tag.Id);
 
         result.Should().NotBeNull();
-        Assert.Equal(tag.Id, result!.Id);
+        result!.Id.Should().Be(tag.Id);
+        result.Name.Should().Be("Tutorial Masak");
     }
 
     [Fact]
-    public async Task GetByIdAsync_ShouldReturnNull_WhenTagDoesNotExist()
+    public async Task When_GetById_NotFound_Should_ReturnNull()
     {
         var tagId = Guid.NewGuid();
-        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tagId, It.IsAny<CancellationToken>()))
+        _tagRepoMock.Setup(r => r.GetByIdAsync(tagId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Tag?)null);
 
         var result = await _tagService.GetByIdAsync(tagId);
 
-        Assert.Null(result);
+        result.Should().BeNull();
     }
 
     [Fact]
-    public async Task GetBySlugAsync_ShouldReturnTag_WhenTagExists()
+    public async Task When_GetBySlug_Found_Should_ReturnDataTag()
     {
-        var tag = CreateTag("Test Tag");
-        _tagRepositoryMock.Setup(r => r.GetBySlugAsync(tag.Slug, It.IsAny<CancellationToken>()))
+        var tag = CreateTag("Tips Keuangan");
+        _tagRepoMock.Setup(r => r.GetBySlugAsync(tag.Slug, It.IsAny<CancellationToken>()))
             .ReturnsAsync(tag);
 
         var result = await _tagService.GetBySlugAsync(tag.Slug);
 
         result.Should().NotBeNull();
-        result!.Slug.Should().Be(tag.Slug);
+        result!.Slug.Should().Be("tips-keuangan");
     }
 
     [Fact]
-    public async Task CreateAsync_ShouldCreateTagAndReturnDto()
+    public async Task When_Create_WithValidData_Should_SimpanDanReturnDto()
     {
-        var dto = new CreateTagDto("New Tag");
+        var dto = new CreateTagDto("Loker Jakarta");
 
         var result = await _tagService.CreateAsync(dto);
 
         result.Should().NotBeNull();
-        Assert.Equal("New Tag", result.Name);
+        result.Name.Should().Be("Loker Jakarta");
+        result.Slug.Should().Be("loker-jakarta");
 
-        _tagRepositoryMock.Verify(r => r.AddAsync(It.Is<Tag>(t => t.Name == "New Tag"), It.IsAny<CancellationToken>()), Times.Once);
+        _tagRepoMock.Verify(r => r.AddAsync(It.Is<Tag>(t => t.Name == "Loker Jakarta"), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task UpdateAsync_ShouldUpdateTag_WhenTagExists()
+    public async Task When_Update_Found_Should_UbahDataDanReturnDto()
     {
-        var tag = CreateTag("Old Name");
-        var dto = new UpdateTagDto("Updated Name");
+        var tag = CreateTag("Nama Lama");
+        var dto = new UpdateTagDto("Nama Baru");
 
-        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tag.Id, It.IsAny<CancellationToken>()))
+        _tagRepoMock.Setup(r => r.GetByIdAsync(tag.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(tag);
 
         var result = await _tagService.UpdateAsync(tag.Id, dto);
 
         result.Should().NotBeNull();
-        Assert.Equal("Updated Name", result!.Name);
+        result!.Name.Should().Be("Nama Baru");
 
-        _tagRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Tag>(t => t.Name == "Updated Name"), It.IsAny<CancellationToken>()), Times.Once);
+        _tagRepoMock.Verify(r => r.UpdateAsync(It.Is<Tag>(t => t.Name == "Nama Baru"), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task DeleteAsync_ShouldReturnTrue_WhenTagExists()
+    public async Task When_Delete_Found_Should_HapusDataDanReturnTrue()
     {
-        var tag = CreateTag("Delete Me");
-        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tag.Id, It.IsAny<CancellationToken>()))
+        var tag = CreateTag("Tag Sampah");
+        _tagRepoMock.Setup(r => r.GetByIdAsync(tag.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(tag);
 
         var result = await _tagService.DeleteAsync(tag.Id);
 
-        Assert.True(result);
-        _tagRepositoryMock.Verify(r => r.DeleteAsync(tag, It.IsAny<CancellationToken>()), Times.Once);
+        result.Should().BeTrue();
+        _tagRepoMock.Verify(r => r.DeleteAsync(tag, It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task DeleteAsync_ShouldReturnFalse_WhenTagDoesNotExist()
+    public async Task When_Delete_NotFound_Should_ReturnFalse()
     {
         var tagId = Guid.NewGuid();
-        _tagRepositoryMock.Setup(r => r.GetByIdAsync(tagId, It.IsAny<CancellationToken>()))
+        _tagRepoMock.Setup(r => r.GetByIdAsync(tagId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Tag?)null);
 
         var result = await _tagService.DeleteAsync(tagId);
 
-        Assert.False(result);
-        _tagRepositoryMock.Verify(r => r.DeleteAsync(It.IsAny<Tag>(), It.IsAny<CancellationToken>()), Times.Never);
+        result.Should().BeFalse();
+        _tagRepoMock.Verify(r => r.DeleteAsync(It.IsAny<Tag>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static Tag CreateTag(string name)

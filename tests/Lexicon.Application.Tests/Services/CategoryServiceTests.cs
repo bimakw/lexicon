@@ -24,91 +24,94 @@ public class CategoryServiceTests
     }
 
     [Fact]
-    public async Task GetAllAsync_ShouldReturnAllCategories()
+    public async Task When_GetAll_Should_ReturnSemuaKategori()
     {
-        var categories = new List<Category> { CreateCategory("Tech"), CreateCategory("Life") };
+        var categories = new List<Category> { CreateCategory("Elektronik"), CreateCategory("Peralatan Rumah") };
         _categoryRepoMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(categories);
 
         var result = await _categoryService.GetAllAsync();
 
         result.Should().HaveCount(2);
-        Assert.Equal("Tech", result.First().Name);
+        result.First().Name.Should().Be("Elektronik");
     }
 
     [Fact]
-    public async Task GetByIdAsync_ShouldReturnCategory_WhenFound()
+    public async Task When_GetById_Found_Should_ReturnDataKategori()
     {
-        var category = CreateCategory("Tech");
+        var category = CreateCategory("Laptop Gaming");
         _categoryRepoMock.Setup(r => r.GetByIdAsync(category.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(category);
 
         var result = await _categoryService.GetByIdAsync(category.Id);
 
-        Assert.NotNull(result);
-        result.Id.Should().Be(category.Id);
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(category.Id);
     }
 
     [Fact]
-    public async Task GetBySlugAsync_ShouldReturnCategory_WhenFound()
+    public async Task When_GetBySlug_Found_Should_ReturnDataCategory()
     {
-        var category = CreateCategory("Tech");
+        var category = CreateCategory("Smartphone Terbaru");
         _categoryRepoMock.Setup(r => r.GetBySlugAsync(category.Slug, It.IsAny<CancellationToken>()))
             .ReturnsAsync(category);
 
         var result = await _categoryService.GetBySlugAsync(category.Slug);
 
-        Assert.NotNull(result);
-        Assert.Equal(category.Slug, result.Slug);
+        result.Should().NotBeNull();
+        result!.Slug.Should().Be("smartphone-terbaru");
     }
 
     [Fact]
-    public async Task CreateAsync_ShouldCreateCategory()
+    public async Task When_Create_WithValidData_Should_SimpanDanReturnDto()
     {
-        var dto = new CreateCategoryDto("New Tech", "Description", null);
+        var dto = new CreateCategoryDto("Kamera Digital", "Untuk fotografi", null);
 
         var result = await _categoryService.CreateAsync(dto);
 
-        result.Name.Should().Be("New Tech");
+        result.Should().NotBeNull();
+        result.Name.Should().Be("Kamera Digital");
+
         _categoryRepoMock.Verify(r => r.AddAsync(It.IsAny<Category>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task UpdateAsync_ShouldUpdateCategory_WhenFound()
+    public async Task When_Update_Found_Should_UbahDataDanReturnDto()
     {
-        var category = CreateCategory("Old");
-        var dto = new UpdateCategoryDto("New Name", "New Desc", null);
+        var category = CreateCategory("Nama Lama");
+        var dto = new UpdateCategoryDto("Nama Baru", "Deskripsi Baru", null);
 
         _categoryRepoMock.Setup(r => r.GetByIdAsync(category.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(category);
 
         var result = await _categoryService.UpdateAsync(category.Id, dto);
 
-        Assert.Equal("New Name", result!.Name);
+        result.Should().NotBeNull();
+        result!.Name.Should().Be("Nama Baru");
 
         _categoryRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Category>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task DeleteAsync_ShouldReturnTrue_WhenFound()
+    public async Task When_Delete_Found_Should_HapusDataDanReturnTrue()
     {
-        var category = CreateCategory("To Delete");
+        var category = CreateCategory("Kategori Sampah");
         _categoryRepoMock.Setup(r => r.GetByIdAsync(category.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(category);
 
         var result = await _categoryService.DeleteAsync(category.Id);
 
-        Assert.True(result);
+        result.Should().BeTrue();
         _categoryRepoMock.Verify(r => r.DeleteAsync(category, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task GetTreeAsync_ShouldReturnHierarchicalStructure()
+    public async Task When_GetTree_Should_ReturnStrukturHierarki()
     {
-        var root = CreateCategory("Root");
-        var child = CreateCategory("Child");
+        var root = CreateCategory("Induk Perusahaan");
+        var child = CreateCategory("Divisi IT");
         child.ParentId = root.Id;
 
         _categoryRepoMock.Setup(r => r.GetRootCategoriesAsync(It.IsAny<CancellationToken>()))
@@ -123,7 +126,8 @@ public class CategoryServiceTests
         var result = await _categoryService.GetTreeAsync();
 
         result.Should().HaveCount(1);
-        Assert.Equal("Child", result.First().Children.First().Name);
+        result.First().Children.Should().HaveCount(1);
+        result.First().Children.First().Name.Should().Be("Divisi IT");
     }
 
     private static Category CreateCategory(string name)
@@ -132,8 +136,8 @@ public class CategoryServiceTests
         {
             Id = Guid.NewGuid(),
             Name = name,
-            Slug = name.ToLower(),
-            Description = "Desc",
+            Slug = name.ToLower().Replace(" ", "-"),
+            Description = "Deskripsi default",
             CreatedAt = DateTime.UtcNow
         };
     }
