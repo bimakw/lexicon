@@ -6,52 +6,51 @@ namespace Lexicon.Api.Controllers;
 
 [ApiController]
 [Route("api")]
-public class CommentsController : ControllerBase
+public class CommentsController(ICommentService commentService) : ControllerBase
 {
-    private readonly ICommentService _commentService;
-
-    public CommentsController(ICommentService commentService)
-    {
-        _commentService = commentService;
-    }
-
     [HttpGet("posts/{postId:guid}/comments")]
     public async Task<ActionResult<IEnumerable<CommentDto>>> GetPostComments(
         Guid postId,
         [FromQuery] bool? approved = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken ct = default)
     {
-        var comments = await _commentService.GetByPostIdAsync(postId, approved, cancellationToken);
-        return Ok(comments);
+        var result = await commentService.GetByPostIdAsync(postId, approved, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 
     [HttpGet("comments/pending")]
-    public async Task<ActionResult<IEnumerable<CommentDto>>> GetPendingComments(CancellationToken cancellationToken)
+    public async Task<ActionResult<IEnumerable<CommentDto>>> GetPendingComments(CancellationToken ct)
     {
-        var comments = await _commentService.GetPendingAsync(cancellationToken);
-        return Ok(comments);
+        var result = await commentService.GetPendingAsync(ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 
     [HttpPost("posts/{postId:guid}/comments")]
-    public async Task<ActionResult<CommentDto>> CreateComment(Guid postId, CreateCommentDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<CommentDto>> CreateComment(Guid postId, CreateCommentDto dto, CancellationToken ct)
     {
-        var comment = await _commentService.CreateAsync(postId, dto, cancellationToken);
-        return Created($"/api/posts/{postId}/comments", comment);
+        var result = await commentService.CreateAsync(postId, dto, ct);
+        if (!result.IsSuccess) return BadRequest(result.Error);
+
+        return Created($"/api/posts/{postId}/comments", result.Value);
     }
 
     [HttpPut("comments/{id:guid}/approve")]
-    public async Task<ActionResult<CommentDto>> ApproveComment(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<CommentDto>> ApproveComment(Guid id, CancellationToken ct)
     {
-        var comment = await _commentService.ApproveAsync(id, cancellationToken);
-        if (comment == null) return NotFound();
-        return Ok(comment);
+        var result = await commentService.ApproveAsync(id, ct);
+        if (!result.IsSuccess)
+            return result.Error?.Contains("tidak ditemukan") == true ? NotFound(result.Error) : BadRequest(result.Error);
+
+        return Ok(result.Value);
     }
 
     [HttpDelete("comments/{id:guid}")]
-    public async Task<IActionResult> DeleteComment(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteComment(Guid id, CancellationToken ct)
     {
-        var result = await _commentService.DeleteAsync(id, cancellationToken);
-        if (!result) return NotFound();
+        var result = await commentService.DeleteAsync(id, ct);
+        if (!result.IsSuccess)
+            return result.Error?.Contains("tidak ditemukan") == true ? NotFound(result.Error) : BadRequest(result.Error);
+
         return NoContent();
     }
 }

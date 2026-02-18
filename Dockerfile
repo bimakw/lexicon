@@ -10,7 +10,7 @@ COPY src/Lexicon.Infrastructure/*.csproj ./src/Lexicon.Infrastructure/
 COPY src/Lexicon.Api/*.csproj ./src/Lexicon.Api/
 
 # Restore dependencies
-RUN dotnet restore
+RUN dotnet restore src/Lexicon.Api/Lexicon.Api.csproj
 
 # Copy source code
 COPY src/ ./src/

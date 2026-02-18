@@ -1,84 +1,106 @@
 using Lexicon.Application.DTOs;
 using Lexicon.Domain.Entities;
 using Lexicon.Domain.Interfaces;
+using Lexicon.Domain.Common;
+using Microsoft.Extensions.Logging;
 
 namespace Lexicon.Application.Services;
 
-public class CommentService : ICommentService
+public class CommentService(
+    IUnitOfWork unitOfWork,
+    ILogger<CommentService> logger) : ICommentService
 {
-    private readonly IUnitOfWork _unitOfWork;
-
-    public CommentService(IUnitOfWork unitOfWork)
+    public async Task<Result<IEnumerable<CommentDto>>> GetByPostIdAsync(Guid postId, bool? isApproved = null, CancellationToken ct = default)
     {
-        _unitOfWork = unitOfWork;
+        var comments = await unitOfWork.Comments.GetByPostIdAsync(postId, isApproved, ct);
+        return Result<IEnumerable<CommentDto>>.Success(comments.Select(MapToDto));
     }
 
-    public async Task<IEnumerable<CommentDto>> GetByPostIdAsync(Guid postId, bool? isApproved = null, CancellationToken cancellationToken = default)
+    public async Task<Result<IEnumerable<CommentDto>>> GetPendingAsync(CancellationToken ct = default)
     {
-        var comments = await _unitOfWork.Comments.GetByPostIdAsync(postId, isApproved, cancellationToken);
-        return comments.Select(MapToDto);
+        var comments = await unitOfWork.Comments.GetPendingCommentsAsync(ct);
+        return Result<IEnumerable<CommentDto>>.Success(comments.Select(MapToDto));
     }
 
-    public async Task<IEnumerable<CommentDto>> GetPendingAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<CommentDto>> CreateAsync(Guid postId, CreateCommentDto dto, CancellationToken ct = default)
     {
-        var comments = await _unitOfWork.Comments.GetPendingCommentsAsync(cancellationToken);
-        return comments.Select(MapToDto);
-    }
-
-    public async Task<CommentDto> CreateAsync(Guid postId, CreateCommentDto dto, CancellationToken cancellationToken = default)
-    {
-        var comment = new Comment
+        try 
         {
-            Id = Guid.NewGuid(),
-            PostId = postId,
-            AuthorName = dto.AuthorName,
-            Email = dto.Email,
-            Content = dto.Content,
-            IsApproved = false,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+            var comment = new Comment
+            {
+                Id = Guid.NewGuid(),
+                PostId = postId,
+                AuthorName = dto.AuthorName,
+                Email = dto.Email,
+                Content = dto.Content,
+                IsApproved = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
 
-        await _unitOfWork.Comments.AddAsync(comment, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.Comments.AddAsync(comment, ct);
+            await unitOfWork.SaveChangesAsync(ct);
 
-        return MapToDto(comment);
+            return Result<CommentDto>.Success(MapToDto(comment));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Gagal simpan komen buat post {PostId} dari {Email}", postId, dto.Email);
+            return Result<CommentDto>.Failure("Gagal memproses penambahan komentar baru.");
+        }
     }
 
-    public async Task<CommentDto?> ApproveAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result<CommentDto>> ApproveAsync(Guid id, CancellationToken ct = default)
     {
-        var comment = await _unitOfWork.Comments.GetByIdAsync(id, cancellationToken);
-        if (comment == null) return null;
+        try 
+        {
+            var comment = await unitOfWork.Comments.GetByIdAsync(id, ct);
+            if (comment == null)
+                return Result<CommentDto>.Failure("Komentar tidak ditemukan.");
 
-        comment.IsApproved = true;
-        comment.UpdatedAt = DateTime.UtcNow;
+            // approve comment & update timestamp
+            comment.IsApproved = true;
+            comment.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.Comments.UpdateAsync(comment, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.Comments.UpdateAsync(comment, ct);
+            await unitOfWork.SaveChangesAsync(ct);
 
-        return MapToDto(comment);
+            return Result<CommentDto>.Success(MapToDto(comment));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error pas approve komen {CommentId}", id);
+            return Result<CommentDto>.Failure("Gagal menyetujui komentar karena kendala teknis.");
+        }
     }
 
-    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result<bool>> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var comment = await _unitOfWork.Comments.GetByIdAsync(id, cancellationToken);
-        if (comment == null) return false;
+        try 
+        {
+            var comment = await unitOfWork.Comments.GetByIdAsync(id, ct);
+            if (comment == null)
+                return Result<bool>.Failure("Komentar yang ingin dihapus tidak ditemukan.");
 
-        await _unitOfWork.Comments.DeleteAsync(comment, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return true;
+            await unitOfWork.Comments.DeleteAsync(comment, ct);
+            await unitOfWork.SaveChangesAsync(ct);
+            
+            return Result<bool>.Success(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Gagal hapus komen {CommentId}", id);
+            return Result<bool>.Failure("Gagal menghapus komentar. Silakan coba lagi.");
+        }
     }
 
-    private static CommentDto MapToDto(Comment comment)
-    {
-        return new CommentDto(
-            comment.Id,
-            comment.PostId,
-            comment.AuthorName,
-            comment.Email,
-            comment.Content,
-            comment.IsApproved,
-            comment.CreatedAt
-        );
-    }
+    private static CommentDto MapToDto(Comment comment) => new(
+        comment.Id,
+        comment.PostId,
+        comment.AuthorName,
+        comment.Email,
+        comment.Content,
+        comment.IsApproved,
+        comment.CreatedAt
+    );
 }
