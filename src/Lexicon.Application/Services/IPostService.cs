@@ -5,9 +5,9 @@ namespace Lexicon.Application.Services;
 
 public interface IPostService
 {
-    Task<PostDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<PostDto?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default);
-    Task<PagedResult<PostListDto>> GetPagedAsync(
+    Task<Result<PostDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Result<PostDto>> GetBySlugAsync(string slug, CancellationToken cancellationToken = default);
+    Task<Result<PagedResult<PostListDto>>> GetPagedAsync(
         int page = 1,
         int pageSize = 10,
         PostStatus? status = null,
@@ -15,9 +15,9 @@ public interface IPostService
         Guid? authorId = null,
         string? searchTerm = null,
         CancellationToken cancellationToken = default);
-    Task<PostDto> CreateAsync(CreatePostDto dto, CancellationToken cancellationToken = default);
-    Task<PostDto?> UpdateAsync(Guid id, UpdatePostDto dto, CancellationToken cancellationToken = default);
-    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<PostDto?> PublishAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<PostDto?> UnpublishAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Result<PostDto>> CreateAsync(CreatePostDto dto, CancellationToken cancellationToken = default);
+    Task<Result<PostDto>> UpdateAsync(Guid id, UpdatePostDto dto, CancellationToken cancellationToken = default);
+    Task<Result<bool>> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Result<PostDto>> PublishAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Result<PostDto>> UnpublishAsync(Guid id, CancellationToken cancellationToken = default);
 }

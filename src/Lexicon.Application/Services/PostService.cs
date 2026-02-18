@@ -5,34 +5,31 @@ using Lexicon.Domain.Interfaces;
 
 namespace Lexicon.Application.Services;
 
-public class PostService : IPostService
+public class PostService(IUnitOfWork unitOfWork) : IPostService
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IUnitOfWork _unitOfWork = unitOfWork;
 
-    public PostService(IUnitOfWork unitOfWork)
-    {
-        _unitOfWork = unitOfWork;
-    }
-
-    public async Task<PostDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result<PostDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var post = await _unitOfWork.Posts.GetByIdAsync(id, cancellationToken);
-        if (post == null) return null;
+        if (post == null) 
+            return Result<PostDto>.Failure("Post not found");
 
         var tags = await _unitOfWork.Tags.GetByPostIdAsync(id, cancellationToken);
-        return MapToDto(post, tags);
+        return Result<PostDto>.Success(MapToDto(post, tags));
     }
 
-    public async Task<PostDto?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public async Task<Result<PostDto>> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         var post = await _unitOfWork.Posts.GetBySlugAsync(slug, cancellationToken);
-        if (post == null) return null;
+        if (post == null)
+            return Result<PostDto>.Failure("Post not found");
 
         var tags = await _unitOfWork.Tags.GetByPostIdAsync(post.Id, cancellationToken);
-        return MapToDto(post, tags);
+        return Result<PostDto>.Success(MapToDto(post, tags));
     }
 
-    public async Task<PagedResult<PostListDto>> GetPagedAsync(
+    public async Task<Result<PagedResult<PostListDto>>> GetPagedAsync(
         int page = 1,
         int pageSize = 10,
         PostStatus? status = null,
@@ -59,16 +56,17 @@ public class PostService : IPostService
 
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
-        return new PagedResult<PostListDto>(items, totalCount, page, pageSize, totalPages);
+        return Result<PagedResult<PostListDto>>.Success(
+            new PagedResult<PostListDto>(items, totalCount, page, pageSize, totalPages));
     }
 
-    public async Task<PostDto> CreateAsync(CreatePostDto dto, CancellationToken cancellationToken = default)
+    public async Task<Result<PostDto>> CreateAsync(CreatePostDto dto, CancellationToken cancellationToken = default)
     {
         var post = new Post
         {
             Id = Guid.NewGuid(),
             Title = dto.Title,
-            Slug = GenerateSlug(dto.Title),
+            Slug = dto.Title.ToLower().Replace(" ", "-"), // Basic slug for #14
             Content = dto.Content,
             Excerpt = dto.Excerpt,
             FeaturedImage = dto.FeaturedImage,
@@ -95,16 +93,21 @@ public class PostService : IPostService
             ? await _unitOfWork.Tags.FindAsync(t => dto.TagIds.Contains(t.Id), cancellationToken)
             : Enumerable.Empty<Tag>();
 
-        return MapToDto(post, tags);
+        return Result<PostDto>.Success(MapToDto(post, tags));
     }
 
-    public async Task<PostDto?> UpdateAsync(Guid id, UpdatePostDto dto, CancellationToken cancellationToken = default)
+    public async Task<Result<PostDto>> UpdateAsync(Guid id, UpdatePostDto dto, CancellationToken cancellationToken = default)
     {
         var post = await _unitOfWork.Posts.GetByIdAsync(id, cancellationToken);
-        if (post == null) return null;
+        if (post == null)
+            return Result<PostDto>.Failure("Post not found");
 
-        post.Title = dto.Title;
-        post.Slug = GenerateSlug(dto.Title);
+        if (post.Title != dto.Title)
+        {
+            post.Slug = dto.Title.ToLower().Replace(" ", "-"); // Basic slug for #14
+            post.Title = dto.Title;
+        }
+
         post.Content = dto.Content;
         post.Excerpt = dto.Excerpt;
         post.FeaturedImage = dto.FeaturedImage;
@@ -128,23 +131,25 @@ public class PostService : IPostService
             ? await _unitOfWork.Tags.FindAsync(t => dto.TagIds.Contains(t.Id), cancellationToken)
             : Enumerable.Empty<Tag>();
 
-        return MapToDto(post, tags);
+        return Result<PostDto>.Success(MapToDto(post, tags));
     }
 
-    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result<bool>> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var post = await _unitOfWork.Posts.GetByIdAsync(id, cancellationToken);
-        if (post == null) return false;
+        if (post == null)
+            return Result<bool>.Failure("Post not found");
 
         await _unitOfWork.Posts.DeleteAsync(post, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return true;
+        return Result<bool>.Success(true);
     }
 
-    public async Task<PostDto?> PublishAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result<PostDto>> PublishAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var post = await _unitOfWork.Posts.GetByIdAsync(id, cancellationToken);
-        if (post == null) return null;
+        if (post == null)
+            return Result<PostDto>.Failure("Post not found");
 
         post.Status = PostStatus.Published;
         post.PublishedAt = DateTime.UtcNow;
@@ -154,13 +159,14 @@ public class PostService : IPostService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var tags = await _unitOfWork.Tags.GetByPostIdAsync(id, cancellationToken);
-        return MapToDto(post, tags);
+        return Result<PostDto>.Success(MapToDto(post, tags));
     }
 
-    public async Task<PostDto?> UnpublishAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result<PostDto>> UnpublishAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var post = await _unitOfWork.Posts.GetByIdAsync(id, cancellationToken);
-        if (post == null) return null;
+        if (post == null)
+            return Result<PostDto>.Failure("Post not found");
 
         post.Status = PostStatus.Draft;
         post.UpdatedAt = DateTime.UtcNow;
@@ -169,7 +175,7 @@ public class PostService : IPostService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var tags = await _unitOfWork.Tags.GetByPostIdAsync(id, cancellationToken);
-        return MapToDto(post, tags);
+        return Result<PostDto>.Success(MapToDto(post, tags));
     }
 
     private static PostDto MapToDto(Post post, IEnumerable<Tag> tags)
@@ -191,13 +197,5 @@ public class PostService : IPostService
             post.CreatedAt,
             post.UpdatedAt
         );
-    }
-
-    private static string GenerateSlug(string title)
-    {
-        return title.ToLowerInvariant()
-            .Replace(" ", "-")
-            .Replace("--", "-")
-            .Trim('-');
     }
 }
