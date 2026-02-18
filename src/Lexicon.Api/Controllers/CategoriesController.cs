@@ -6,65 +6,56 @@ namespace Lexicon.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class CategoriesController : ControllerBase
+public class CategoriesController(ICategoryService categoryService) : ControllerBase
 {
-    private readonly ICategoryService _categoryService;
-
-    public CategoriesController(ICategoryService categoryService)
-    {
-        _categoryService = categoryService;
-    }
-
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories(CancellationToken cancellationToken)
     {
-        var categories = await _categoryService.GetAllAsync(cancellationToken);
-        return Ok(categories);
+        var result = await categoryService.GetAllAsync(cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 
     [HttpGet("tree")]
     public async Task<ActionResult<IEnumerable<CategoryTreeDto>>> GetCategoryTree(CancellationToken cancellationToken)
     {
-        var tree = await _categoryService.GetTreeAsync(cancellationToken);
-        return Ok(tree);
+        var result = await categoryService.GetTreeAsync(cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 
     [HttpGet("{slug}")]
     public async Task<ActionResult<CategoryDto>> GetCategory(string slug, CancellationToken cancellationToken)
     {
-        var category = await _categoryService.GetBySlugAsync(slug, cancellationToken);
-        if (category == null) return NotFound();
-        return Ok(category);
+        var result = await categoryService.GetBySlugAsync(slug, cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     [HttpGet("id/{id:guid}")]
     public async Task<ActionResult<CategoryDto>> GetCategoryById(Guid id, CancellationToken cancellationToken)
     {
-        var category = await _categoryService.GetByIdAsync(id, cancellationToken);
-        if (category == null) return NotFound();
-        return Ok(category);
+        var result = await categoryService.GetByIdAsync(id, cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     [HttpPost]
     public async Task<ActionResult<CategoryDto>> CreateCategory(CreateCategoryDto dto, CancellationToken cancellationToken)
     {
-        var category = await _categoryService.CreateAsync(dto, cancellationToken);
-        return CreatedAtAction(nameof(GetCategoryById), new { id = category.Id }, category);
+        var result = await categoryService.CreateAsync(dto, cancellationToken);
+        if (!result.IsSuccess) return BadRequest(result.Error);
+        
+        return CreatedAtAction(nameof(GetCategoryById), new { id = result.Value!.Id }, result.Value);
     }
 
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<CategoryDto>> UpdateCategory(Guid id, UpdateCategoryDto dto, CancellationToken cancellationToken)
     {
-        var category = await _categoryService.UpdateAsync(id, dto, cancellationToken);
-        if (category == null) return NotFound();
-        return Ok(category);
+        var result = await categoryService.UpdateAsync(id, dto, cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteCategory(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _categoryService.DeleteAsync(id, cancellationToken);
-        if (!result) return NotFound();
-        return NoContent();
+        var result = await categoryService.DeleteAsync(id, cancellationToken);
+        return result.IsSuccess ? NoContent() : NotFound(result.Error);
     }
 }
