@@ -1,3 +1,4 @@
+using Lexicon.Application.DTOs;
 using Lexicon.Application.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,23 +7,14 @@ namespace Lexicon.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController : ControllerBase
+public class AuthController(IAuthService authService, ILogger<AuthController> logger) : ControllerBase
 {
-    private readonly IAuthService _authService;
-    private readonly ILogger<AuthController> _logger;
-
-    public AuthController(IAuthService authService, ILogger<AuthController> logger)
-    {
-        _authService = authService;
-        _logger = logger;
-    }
-
     [HttpPost("register")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Register([FromBody] RegisterDto request)
     {
-        var result = await _authService.RegisterAsync(new RegisterRequest(
+        var result = await authService.RegisterAsync(new RegisterRequest(
             request.Username,
             request.Email,
             request.Password,
@@ -48,7 +40,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginDto request)
     {
         var ipAddress = GetIpAddress();
-        var result = await _authService.LoginAsync(
+        var result = await authService.LoginAsync(
             new LoginRequest(request.UsernameOrEmail, request.Password),
             ipAddress);
 
@@ -66,7 +58,7 @@ public class AuthController : ControllerBase
 
         SetRefreshTokenCookie(result.RefreshToken!, result.RefreshTokenExpiry!.Value);
 
-        _logger.LogInformation("User {Username} logged in from {IpAddress}",
+        logger.LogInformation("User {Username} logged in from {IpAddress}",
             result.User!.Username, ipAddress);
 
         return Ok(new AuthResponse(
@@ -87,7 +79,7 @@ public class AuthController : ControllerBase
         }
 
         var ipAddress = GetIpAddress();
-        var result = await _authService.RefreshTokenAsync(refreshToken, ipAddress);
+        var result = await authService.RefreshTokenAsync(refreshToken, ipAddress);
 
         if (!result.Success)
         {
@@ -112,7 +104,7 @@ public class AuthController : ControllerBase
         if (!string.IsNullOrEmpty(refreshToken))
         {
             var ipAddress = GetIpAddress();
-            await _authService.RevokeTokenAsync(refreshToken, ipAddress, "User logout");
+            await authService.RevokeTokenAsync(refreshToken, ipAddress, "User logout");
         }
 
         ClearRefreshTokenCookie();
@@ -133,7 +125,7 @@ public class AuthController : ControllerBase
         }
 
         var ipAddress = GetIpAddress();
-        await _authService.RevokeAllUserTokensAsync(userGuid, ipAddress, "User requested");
+        await authService.RevokeAllUserTokensAsync(userGuid, ipAddress, "User requested");
 
         ClearRefreshTokenCookie();
 
@@ -202,27 +194,3 @@ public class AuthController : ControllerBase
         return HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "unknown";
     }
 }
-
-// DTOs
-public record RegisterDto(
-    string Username,
-    string Email,
-    string Password,
-    string? FirstName = null,
-    string? LastName = null
-);
-
-public record LoginDto(
-    string UsernameOrEmail,
-    string Password
-);
-
-public record AuthResponse(
-    string AccessToken,
-    UserDto User
-);
-
-public record ErrorResponse(
-    string Message,
-    string Code
-);

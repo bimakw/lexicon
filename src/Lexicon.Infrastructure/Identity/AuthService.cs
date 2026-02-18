@@ -8,27 +8,19 @@ using Microsoft.Extensions.Logging;
 
 namespace Lexicon.Infrastructure.Identity;
 
-public class AuthService : IAuthService
+public class AuthService(
+    LexiconDbContext context,
+    ITokenService tokenService,
+    IPasswordHasher passwordHasher,
+    ILogger<AuthService> logger) : IAuthService
 {
-    private readonly LexiconDbContext _context;
-    private readonly ITokenService _tokenService;
-    private readonly IPasswordHasher _passwordHasher;
-    private readonly ILogger<AuthService> _logger;
+    private readonly LexiconDbContext _context = context;
+    private readonly ITokenService _tokenService = tokenService;
+    private readonly IPasswordHasher _passwordHasher = passwordHasher;
+    private readonly ILogger<AuthService> _logger = logger;
 
     private const int MaxFailedAttempts = 5;
     private const int LockoutMinutes = 15;
-
-    public AuthService(
-        LexiconDbContext context,
-        ITokenService tokenService,
-        IPasswordHasher passwordHasher,
-        ILogger<AuthService> logger)
-    {
-        _context = context;
-        _tokenService = tokenService;
-        _passwordHasher = passwordHasher;
-        _logger = logger;
-    }
 
     public async Task<AuthResult> RegisterAsync(RegisterRequest request)
     {

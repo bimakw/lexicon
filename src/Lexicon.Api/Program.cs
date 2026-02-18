@@ -1,6 +1,7 @@
 using System.Text;
 using AspNetCoreRateLimit;
 using Lexicon.Api.Authorization;
+using Lexicon.Api.Filters;
 using Lexicon.Application;
 using Lexicon.Application.Identity;
 using Lexicon.Infrastructure;
@@ -27,7 +28,10 @@ builder.Host.UseSerilog();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ValidationFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger with JWT support
