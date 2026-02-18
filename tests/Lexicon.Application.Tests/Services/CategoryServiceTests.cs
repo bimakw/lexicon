@@ -35,7 +35,7 @@ public class CategoryServiceTests
     }
 
     [Fact]
-    public async Task Ambil_SemuaKategori()
+    public async Task Should_ReturnAllCategories_When_Called()
     {
         var list = new List<Category>
         {
@@ -50,7 +50,7 @@ public class CategoryServiceTests
     }
 
     [Fact]
-    public async Task Ambil_ById()
+    public async Task Should_ReturnCategory_When_Found()
     {
         var kat = BikinKategori("Dokumen Teknis");
         _catRepo.Setup(r => r.GetByIdAsync(kat.Id, It.IsAny<CancellationToken>())).ReturnsAsync(kat);
@@ -61,7 +61,7 @@ public class CategoryServiceTests
     }
 
     [Fact]
-    public async Task Ambil_BySlug()
+    public async Task Should_ReturnCategory_When_FoundBySlug()
     {
         var kat = BikinKategori("Panduan Kerja");
         _catRepo.Setup(r => r.GetBySlugAsync("panduan-kerja", default)).ReturnsAsync(kat);
@@ -71,7 +71,7 @@ public class CategoryServiceTests
     }
 
     [Fact]
-    public async Task Tambah_KategoriBaru()
+    public async Task Should_CreateCategory_When_ValidDto()
     {
         var dto = new CreateCategoryDto("Arsip Lama", "Dokumen lama perusahaan", null);
 
@@ -82,7 +82,7 @@ public class CategoryServiceTests
     }
 
     [Fact]
-    public async Task Edit_KategoriYangAda()
+    public async Task Should_UpdateCategory_When_Found()
     {
         var existing = BikinKategori("Nama Salah");
         _catRepo.Setup(r => r.GetByIdAsync(existing.Id, It.IsAny<CancellationToken>())).ReturnsAsync(existing);
@@ -95,7 +95,7 @@ public class CategoryServiceTests
     }
 
     [Fact]
-    public async Task Hapus_Kategori_Berhasil()
+    public async Task Should_DeleteCategory_When_Found()
     {
         var kat = BikinKategori("Kategori Usang");
         _catRepo.Setup(r => r.GetByIdAsync(kat.Id, default)).ReturnsAsync(kat);
@@ -105,7 +105,7 @@ public class CategoryServiceTests
     }
 
     [Fact]
-    public async Task TreeMainChild()
+    public async Task Should_ReturnHierarchy_When_TreeRequested()
     {
         var main = BikinKategori("Kantor Pusat");
         var child = BikinKategori("Cabang Surabaya", main.Id);

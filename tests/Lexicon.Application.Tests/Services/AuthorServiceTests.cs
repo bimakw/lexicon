@@ -23,7 +23,7 @@ public class AuthorServiceTests
     }
 
     [Fact]
-    public async Task ListPenulisGetAll()
+    public async Task Should_ReturnAllAuthors_When_Called()
     {
         var penulis = new List<Author>
         {
@@ -39,7 +39,7 @@ public class AuthorServiceTests
     }
 
     [Fact]
-    public async Task CariById()
+    public async Task Should_ReturnAuthor_When_Found()
     {
         var id = Guid.NewGuid();
         _authorRepo.Setup(r => r.GetByIdAsync(id, default))
@@ -52,7 +52,7 @@ public class AuthorServiceTests
     }
 
     [Fact]
-    public async Task TambahPenulisNew()
+    public async Task Should_CreateAuthor_When_ValidDto()
     {
         var input = new CreateAuthorDto("Rina Sulis", "rina@kantor.id", "Staff Admin", "https://foto.id/rina.jpg");
 
@@ -66,7 +66,7 @@ public class AuthorServiceTests
     }
 
     [Fact]
-    public async Task UpdatePenulis()
+    public async Task Should_UpdateAuthor_When_Found()
     {
         var authorId = Guid.NewGuid();
         var lama = new Author { Id = authorId, Name = "Staff Lama", Email = "lama@kantor.id", CreatedAt = DateTime.UtcNow };
@@ -80,7 +80,7 @@ public class AuthorServiceTests
     }
 
     [Fact]
-    public async Task HapusPenulisReturnTrue()
+    public async Task Should_DeleteAuthor_When_Found()
     {
         var authorId = Guid.NewGuid();
         _authorRepo.Setup(r => r.GetByIdAsync(authorId, default))
@@ -91,7 +91,7 @@ public class AuthorServiceTests
     }
 
     [Fact]
-    public async Task HapusPenulisReturnFalse()
+    public async Task Should_ReturnFalse_When_DeleteNotFound()
     {
         _authorRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), default)).ReturnsAsync((Author?)null);
 

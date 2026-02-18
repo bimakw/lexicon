@@ -21,7 +21,7 @@ public class TagServiceTests
     }
 
     [Fact]
-    public async Task GetAll()
+    public async Task Should_ReturnAllTags_When_Called()
     {
         _tagRepo.Setup(r => r.GetAllAsync(default)).ReturnsAsync(new List<Tag>
         {
@@ -35,7 +35,7 @@ public class TagServiceTests
     }
 
     [Fact]
-    public async Task GetById()
+    public async Task Should_ReturnTag_When_Found()
     {
         var tagId = Guid.NewGuid();
         var tag = new Tag { Id = tagId, Name = "Tutorial Masak", Slug = "tutorial-masak" };
@@ -48,7 +48,7 @@ public class TagServiceTests
     }
 
     [Fact]
-    public async Task GetByIdReturnNull()
+    public async Task Should_ReturnNull_When_NotFound()
     {
         var randomId = Guid.NewGuid();
         _tagRepo.Setup(r => r.GetByIdAsync(randomId, default)).ReturnsAsync((Tag?)null);
@@ -58,7 +58,7 @@ public class TagServiceTests
     }
 
     [Fact]
-    public async Task GetBySlug()
+    public async Task Should_ReturnTag_When_FoundBySlug()
     {
         var tag = new Tag { Id = Guid.NewGuid(), Name = "Tips Freelance", Slug = "tips-freelance" };
         _tagRepo.Setup(r => r.GetBySlugAsync("tips-freelance", default)).ReturnsAsync(tag);
@@ -69,7 +69,7 @@ public class TagServiceTests
     }
 
     [Fact]
-    public async Task Create()
+    public async Task Should_CreateTag_When_ValidDto()
     {
         var input = new CreateTagDto("Lowongan Kerja");
         var hasil = await _tagService.CreateAsync(input);
@@ -84,7 +84,7 @@ public class TagServiceTests
     }
 
     [Fact]
-    public async Task Update()
+    public async Task Should_UpdateTag_When_Found()
     {
         var existing = new Tag { Id = Guid.NewGuid(), Name = "Nama Lama", Slug = "nama-lama" };
         _tagRepo.Setup(r => r.GetByIdAsync(existing.Id, default)).ReturnsAsync(existing);
@@ -97,7 +97,7 @@ public class TagServiceTests
     }
 
     [Fact]
-    public async Task Delete()
+    public async Task Should_DeleteTag_When_Found()
     {
         var tag = new Tag { Id = Guid.NewGuid(), Name = "Hapus Ini", Slug = "hapus-ini" };
         _tagRepo.Setup(r => r.GetByIdAsync(tag.Id, default)).ReturnsAsync(tag);
