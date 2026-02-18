@@ -17,9 +17,13 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
+          cache: true
 
       - name: Restore dependencies
         run: dotnet restore
+
+      - name: Lint (Format Check)
+        run: dotnet format --verify-no-changes --verbosity diagnostic
 
       - name: Build
         run: dotnet build --configuration Release --no-restore
@@ -48,6 +52,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Type Check
+        run: npm run type-check
 
       - name: Build
         run: npm run build
