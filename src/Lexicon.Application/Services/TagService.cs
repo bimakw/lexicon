@@ -1,94 +1,134 @@
 using Lexicon.Application.DTOs;
 using Lexicon.Domain.Entities;
 using Lexicon.Domain.Interfaces;
+using Lexicon.Domain.Common;
+using Microsoft.Extensions.Logging;
+using Lexicon.Application.Helpers;
 
 namespace Lexicon.Application.Services;
 
-public class TagService : ITagService
+public class TagService(
+    IUnitOfWork unitOfWork,
+    ILogger<TagService> logger) : ITagService
 {
-    private readonly IUnitOfWork _unitOfWork;
-
-    public TagService(IUnitOfWork unitOfWork)
+    public async Task<Result<IEnumerable<TagDto>>> GetAllAsync(CancellationToken ct = default)
     {
-        _unitOfWork = unitOfWork;
+        var tags = await unitOfWork.Tags.GetAllAsync(ct);
+        return Result<IEnumerable<TagDto>>.Success(tags.Select(MapToDto));
     }
 
-    public async Task<IEnumerable<TagDto>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<TagDto>> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var tags = await _unitOfWork.Tags.GetAllAsync(cancellationToken);
-        return tags.Select(MapToDto);
+        var tag = await unitOfWork.Tags.GetByIdAsync(id, ct);
+        
+        if (tag == null)
+            return Result<TagDto>.Failure("Tag tidak ditemukan.");
+
+        return Result<TagDto>.Success(MapToDto(tag));
     }
 
-    public async Task<TagDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result<TagDto>> GetBySlugAsync(string slug, CancellationToken ct = default)
     {
-        var tag = await _unitOfWork.Tags.GetByIdAsync(id, cancellationToken);
-        return tag != null ? MapToDto(tag) : null;
+        var tag = await unitOfWork.Tags.GetBySlugAsync(slug, ct);
+        
+        if (tag == null)
+            return Result<TagDto>.Failure("Tag tidak ditemukan.");
+
+        return Result<TagDto>.Success(MapToDto(tag));
     }
 
-    public async Task<TagDto?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public async Task<Result<TagDto>> CreateAsync(CreateTagDto dto, CancellationToken ct = default)
     {
-        var tag = await _unitOfWork.Tags.GetBySlugAsync(slug, cancellationToken);
-        return tag != null ? MapToDto(tag) : null;
-    }
-
-    public async Task<TagDto> CreateAsync(CreateTagDto dto, CancellationToken cancellationToken = default)
-    {
-        var tag = new Tag
+        try 
         {
-            Id = Guid.NewGuid(),
-            Name = dto.Name,
-            Slug = GenerateSlug(dto.Name),
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+            var slug = SlugHelper.GenerateSlug(dto.Name);
 
-        await _unitOfWork.Tags.AddAsync(tag, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            // cek slug duplikat
+            var existing = await unitOfWork.Tags.GetBySlugAsync(slug, ct);
+            if (existing != null)
+                return Result<TagDto>.Failure("Nama atau slug tag sudah digunakan.");
 
-        return MapToDto(tag);
+            var tag = new Tag
+            {
+                Id = Guid.NewGuid(),
+                Name = dto.Name,
+                Slug = slug,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await unitOfWork.Tags.AddAsync(tag, ct);
+            await unitOfWork.SaveChangesAsync(ct);
+
+            return Result<TagDto>.Success(MapToDto(tag));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Gagal bikin tag baru: {TagName}", dto.Name);
+            return Result<TagDto>.Failure("Gagal memproses pembuatan tag baru.");
+        }
     }
 
-    public async Task<TagDto?> UpdateAsync(Guid id, UpdateTagDto dto, CancellationToken cancellationToken = default)
+    public async Task<Result<TagDto>> UpdateAsync(Guid id, UpdateTagDto dto, CancellationToken ct = default)
     {
-        var tag = await _unitOfWork.Tags.GetByIdAsync(id, cancellationToken);
-        if (tag == null) return null;
+        try 
+        {
+            var tag = await unitOfWork.Tags.GetByIdAsync(id, ct);
+            if (tag == null) 
+                return Result<TagDto>.Failure("Tag yang akan diperbarui tidak ditemukan.");
 
-        tag.Name = dto.Name;
-        tag.Slug = GenerateSlug(dto.Name);
-        tag.UpdatedAt = DateTime.UtcNow;
+            if (tag.Name != dto.Name)
+            {
+                var newSlug = SlugHelper.GenerateSlug(dto.Name);
+                
+                // pastikan tidak duplikat dengan tag lain
+                var existing = await unitOfWork.Tags.GetBySlugAsync(newSlug, ct);
+                if (existing != null && existing.Id != id)
+                    return Result<TagDto>.Failure("Nama atau slug tersebut sudah digunakan oleh tag lain.");
 
-        await _unitOfWork.Tags.UpdateAsync(tag, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+                tag.Name = dto.Name;
+                tag.Slug = newSlug;
+            }
 
-        return MapToDto(tag);
+            tag.UpdatedAt = DateTime.UtcNow;
+
+            await unitOfWork.Tags.UpdateAsync(tag, ct);
+            await unitOfWork.SaveChangesAsync(ct);
+
+            return Result<TagDto>.Success(MapToDto(tag));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error pas update tag {TagId}", id);
+            return Result<TagDto>.Failure("Gagal memperbarui data tag karena kendala teknis.");
+        }
     }
 
-    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result<bool>> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var tag = await _unitOfWork.Tags.GetByIdAsync(id, cancellationToken);
-        if (tag == null) return false;
+        try 
+        {
+            var tag = await unitOfWork.Tags.GetByIdAsync(id, ct);
+            if (tag == null)
+                return Result<bool>.Failure("Tag yang ingin dihapus tidak ditemukan.");
 
-        await _unitOfWork.Tags.DeleteAsync(tag, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return true;
+            await unitOfWork.Tags.DeleteAsync(tag, ct);
+            await unitOfWork.SaveChangesAsync(ct);
+            
+            return Result<bool>.Success(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Gagal hapus tag {TagId}", id);
+            return Result<bool>.Failure("Gagal menghapus tag. Silakan coba lagi nanti.");
+        }
     }
 
-    private static TagDto MapToDto(Tag tag)
-    {
-        return new TagDto(
-            tag.Id,
-            tag.Name,
-            tag.Slug,
-            tag.PostTags.Count,
-            tag.CreatedAt
-        );
-    }
-
-    private static string GenerateSlug(string name)
-    {
-        return name.ToLowerInvariant()
-            .Replace(" ", "-")
-            .Replace("--", "-")
-            .Trim('-');
-    }
+    private static TagDto MapToDto(Tag tag) => new(
+        tag.Id,
+        tag.Name,
+        tag.Slug,
+        tag.PostTags?.Count ?? 0,
+        tag.CreatedAt
+    );
 }

@@ -6,50 +6,48 @@ namespace Lexicon.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthorsController : ControllerBase
+public class AuthorsController(IAuthorService authorService) : ControllerBase
 {
-    private readonly IAuthorService _authorService;
-
-    public AuthorsController(IAuthorService authorService)
-    {
-        _authorService = authorService;
-    }
-
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AuthorDto>>> GetAuthors(CancellationToken cancellationToken)
+    public async Task<ActionResult<IEnumerable<AuthorDto>>> GetAuthors(CancellationToken ct)
     {
-        var authors = await _authorService.GetAllAsync(cancellationToken);
-        return Ok(authors);
+        var result = await authorService.GetAllAsync(ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<AuthorDto>> GetAuthor(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<AuthorDto>> GetAuthor(Guid id, CancellationToken ct)
     {
-        var author = await _authorService.GetByIdAsync(id, cancellationToken);
-        if (author == null) return NotFound();
-        return Ok(author);
+        var result = await authorService.GetByIdAsync(id, ct);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     [HttpPost]
-    public async Task<ActionResult<AuthorDto>> CreateAuthor(CreateAuthorDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<AuthorDto>> CreateAuthor(CreateAuthorDto dto, CancellationToken ct)
     {
-        var author = await _authorService.CreateAsync(dto, cancellationToken);
-        return CreatedAtAction(nameof(GetAuthor), new { id = author.Id }, author);
+        var result = await authorService.CreateAsync(dto, ct);
+        if (!result.IsSuccess) return BadRequest(result.Error);
+        
+        return CreatedAtAction(nameof(GetAuthor), new { id = result.Value!.Id }, result.Value);
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<AuthorDto>> UpdateAuthor(Guid id, UpdateAuthorDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<AuthorDto>> UpdateAuthor(Guid id, UpdateAuthorDto dto, CancellationToken ct)
     {
-        var author = await _authorService.UpdateAsync(id, dto, cancellationToken);
-        if (author == null) return NotFound();
-        return Ok(author);
+        var result = await authorService.UpdateAsync(id, dto, ct);
+        if (!result.IsSuccess) 
+            return result.Error?.Contains("tidak ditemukan") == true ? NotFound(result.Error) : BadRequest(result.Error);
+
+        return Ok(result.Value);
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteAuthor(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteAuthor(Guid id, CancellationToken ct)
     {
-        var result = await _authorService.DeleteAsync(id, cancellationToken);
-        if (!result) return NotFound();
+        var result = await authorService.DeleteAsync(id, ct);
+        if (!result.IsSuccess)
+            return result.Error?.Contains("tidak ditemukan") == true ? NotFound(result.Error) : BadRequest(result.Error);
+
         return NoContent();
     }
 }
